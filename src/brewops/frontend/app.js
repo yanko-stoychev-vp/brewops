@@ -177,11 +177,12 @@ async function submitForm(event, url, messageId, buildPayload) {
 }
 
 function setDefaultDateRange() {
-  const to = new Date();
-  const from = new Date(to);
-  from.setDate(from.getDate() - 30);
-  document.getElementById("filter-from").value = from.toISOString().split('T')[0];
-  document.getElementById("filter-to").value = to.toISOString().split('T')[0];
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const formatDate = (date) => date.toISOString().split('T')[0];
+  document.getElementById("filter-from").value = formatDate(thirtyDaysAgo);
+  document.getElementById("filter-to").value = formatDate(today);
 }
 
 setDefaultDateRange();
