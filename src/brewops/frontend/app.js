@@ -98,6 +98,10 @@ async function loadDashboard() {
   const label = document.getElementById("brews-today-label");
   label.textContent = isFiltered ? "brews on last day in range" : "brews on last active day";
 
+  // Update CSV download link with current filters
+  const csvLink = document.getElementById("csv-download");
+  csvLink.href = `/api/export/brews.csv${qs ? "?" + qs : ""}`;
+
   renderDrinkBars(stats.per_drink);
   renderTimeline(stats.per_day);
 

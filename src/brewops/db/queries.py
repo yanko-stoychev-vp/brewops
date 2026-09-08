@@ -111,6 +111,34 @@ def get_stats(conn: sqlite3.Connection, date_from: str | None = None, date_to: s
     return {"total_brews": total, "per_drink": per_drink, "per_day": per_day}
 
 
+def get_brews_for_export(conn: sqlite3.Connection, date_from: str | None = None, date_to: str | None = None) -> list[dict[str, Any]]:
+    """Brew events with machine/drink labels, for CSV export.
+
+    Date filters as 'YYYY-MM-DD' strings (inclusive), mirroring get_stats semantics.
+    """
+    clauses = []
+    params = []
+    if date_from:
+        clauses.append("timestamp >= ?")
+        params.append(date_from)
+    if date_to:
+        clauses.append("timestamp <= ?")
+        params.append(f"{date_to} 23:59:59")
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    rows = conn.execute(
+        f"""
+        SELECT be.timestamp, m.name AS machine, dt.label AS drink, be.duration_s, be.temp_c, be.source
+        FROM brew_events be
+        JOIN machines m ON m.id = be.machine_id
+        JOIN drink_types dt ON dt.name = be.drink_type
+        {where}
+        ORDER BY be.timestamp
+        """,
+        params
+    )
+    return [dict(r) for r in rows]
+
+
 def get_machine_health(conn: sqlite3.Connection, machine_id: int) -> dict[str, Any] | None:
     """Machine card: brew activity plus maintenance history."""
     machine = get_machine(conn, machine_id)

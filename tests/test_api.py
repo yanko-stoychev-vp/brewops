@@ -162,3 +162,77 @@ def test_post_maintenance(db):
         "timestamp": "2026-06-06 09:00:00",
     })
     assert r.status == 400
+
+
+def test_export_brews_csv(db):
+    import csv
+
+    r = request(app, "GET", "/api/export/brews.csv")
+    assert r.status == 200
+    assert r.headers["content-type"] == "text/csv; charset=utf-8"
+    assert "attachment" in r.headers["content-disposition"]
+
+    body = r.text
+    reader = csv.DictReader(body.splitlines())
+    rows = list(reader)
+
+    # Check header
+    assert reader.fieldnames == ["timestamp", "machine", "drink", "duration_s", "temp_c", "source"]
+
+    # Check we got all 3 brews
+    assert len(rows) == 3
+
+    # Verify first brew (espresso on 2026-06-01)
+    assert rows[0]["timestamp"] == "2026-06-01 08:00:00"
+    assert rows[0]["machine"] == "Bertha (3rd floor)"  # Machine 1 is Bertha
+    assert rows[0]["drink"] == "Espresso"  # drink_type espresso has label Espresso
+    assert rows[0]["source"] == "csv"
+
+    # Verify last brew (latte on 2026-06-02)
+    assert rows[2]["timestamp"] == "2026-06-02 10:00:00"
+    assert rows[2]["machine"] == "The Intern (kitchen)"  # Machine 2 is The Intern
+    assert rows[2]["drink"] == "Latte"
+
+
+def test_export_brews_csv_with_date_filters(db):
+    import csv
+
+    # Test with date_from filter
+    r = request(app, "GET", "/api/export/brews.csv?date_from=2026-06-02")
+    assert r.status == 200
+    reader = csv.DictReader(r.text.splitlines())
+    rows = list(reader)
+    assert len(rows) == 1
+    assert rows[0]["timestamp"] == "2026-06-02 10:00:00"
+
+    # Verify filename includes date range
+    assert "2026-06-02" in r.headers["content-disposition"]
+
+    # Test with date_to filter
+    r = request(app, "GET", "/api/export/brews.csv?date_to=2026-06-01")
+    assert r.status == 200
+    reader = csv.DictReader(r.text.splitlines())
+    rows = list(reader)
+    assert len(rows) == 2
+
+    # Test with both filters
+    r = request(app, "GET", "/api/export/brews.csv?date_from=2026-06-01&date_to=2026-06-01")
+    assert r.status == 200
+    reader = csv.DictReader(r.text.splitlines())
+    rows = list(reader)
+    assert len(rows) == 2
+    # Verify row count matches stats for same date range
+    stats = request(app, "GET", "/api/stats?date_from=2026-06-01&date_to=2026-06-01").json()
+    assert len(rows) == stats["total_brews"]
+
+
+def test_export_brews_csv_invalid_date_range(db):
+    # Test invalid date_from format
+    r = request(app, "GET", "/api/export/brews.csv?date_from=not-a-date")
+    assert r.status == 400
+    assert "date_from" in r.json()["detail"]
+
+    # Test date_from after date_to
+    r = request(app, "GET", "/api/export/brews.csv?date_from=2026-06-10&date_to=2026-06-01")
+    assert r.status == 400
+    assert "date_from" in r.json()["detail"]

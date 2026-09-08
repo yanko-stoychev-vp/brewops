@@ -1,5 +1,7 @@
 """FastAPI app: JSON API + static frontend, one process, port 8123."""
 
+import csv
+import io
 import sqlite3
 from contextlib import asynccontextmanager, closing
 from datetime import datetime
@@ -7,6 +9,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -54,6 +57,26 @@ def parse_timestamp(value: str) -> str:
     return ts.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def validate_date_range(date_from: str | None, date_to: str | None) -> tuple[str | None, str | None]:
+    """Validate and return date_from/date_to as 'YYYY-MM-DD' strings.
+
+    Raises HTTPException(400) if dates are malformed or date_from > date_to.
+    """
+    if date_from:
+        try:
+            datetime.strptime(date_from, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(400, f"date_from must be YYYY-MM-DD, got {date_from!r}")
+    if date_to:
+        try:
+            datetime.strptime(date_to, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(400, f"date_to must be YYYY-MM-DD, got {date_to!r}")
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(400, "date_from must not be after date_to")
+    return date_from, date_to
+
+
 class BrewIn(BaseModel):
     machine_id: int
     drink_type: str
@@ -76,19 +99,40 @@ def stats(
     date_to: str | None = None,
     conn: sqlite3.Connection = Depends(get_db),
 ):
-    if date_from:
-        try:
-            datetime.strptime(date_from, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(400, f"date_from must be YYYY-MM-DD, got {date_from!r}")
-    if date_to:
-        try:
-            datetime.strptime(date_to, "%Y-%m-%d")
-        except ValueError:
-            raise HTTPException(400, f"date_to must be YYYY-MM-DD, got {date_to!r}")
-    if date_from and date_to and date_from > date_to:
-        raise HTTPException(400, "date_from must not be after date_to")
+    date_from, date_to = validate_date_range(date_from, date_to)
     return queries.get_stats(conn, date_from, date_to)
+
+
+@app.get("/api/export/brews.csv")
+def export_brews_csv(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    conn: sqlite3.Connection = Depends(get_db),
+):
+    date_from, date_to = validate_date_range(date_from, date_to)
+    brews = queries.get_brews_for_export(conn, date_from, date_to)
+
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=["timestamp", "machine", "drink", "duration_s", "temp_c", "source"]
+    )
+    writer.writeheader()
+    writer.writerows(brews)
+
+    filename = "brewops-brews.csv"
+    if date_from and date_to:
+        filename = f"brewops-brews-{date_from}_{date_to}.csv"
+    elif date_from:
+        filename = f"brewops-brews-from-{date_from}.csv"
+    elif date_to:
+        filename = f"brewops-brews-to-{date_to}.csv"
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/machines")
