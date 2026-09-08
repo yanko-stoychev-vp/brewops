@@ -65,30 +65,47 @@ def insert_maintenance(
     return cur.lastrowid
 
 
-def get_stats(conn: sqlite3.Connection) -> dict[str, Any]:
-    """Dashboard numbers: totals, per-drink, per-day."""
-    total = conn.execute("SELECT COUNT(*) AS n FROM brew_events").fetchone()["n"]
+def get_stats(conn: sqlite3.Connection, date_from: str | None = None, date_to: str | None = None) -> dict[str, Any]:
+    """Dashboard numbers: totals, per-drink, per-day.
+
+    Optional date_from/date_to filter as 'YYYY-MM-DD' strings (inclusive).
+    """
+    clauses = []
+    params = []
+    if date_from:
+        clauses.append("timestamp >= ?")
+        params.append(date_from)
+    if date_to:
+        clauses.append("timestamp <= ?")
+        params.append(f"{date_to} 23:59:59")
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    on_extra = (" AND " + " AND ".join(clauses)) if clauses else ""
+
+    total = conn.execute(f"SELECT COUNT(*) AS n FROM brew_events {where}", params).fetchone()["n"]
     per_drink = [
         dict(r)
         for r in conn.execute(
-            """
+            f"""
             SELECT dt.name, dt.label, COUNT(be.id) AS count
             FROM drink_types dt
-            LEFT JOIN brew_events be ON be.drink_type = dt.name
+            LEFT JOIN brew_events be ON be.drink_type = dt.name{on_extra}
             GROUP BY dt.id
             ORDER BY dt.id
-            """
+            """,
+            params
         )
     ]
     per_day = [
         dict(r)
         for r in conn.execute(
-            """
+            f"""
             SELECT DATE(timestamp) AS day, COUNT(*) AS count
             FROM brew_events
+            {where}
             GROUP BY DATE(timestamp)
             ORDER BY day
-            """
+            """,
+            params
         )
     ]
     return {"total_brews": total, "per_drink": per_drink, "per_day": per_day}

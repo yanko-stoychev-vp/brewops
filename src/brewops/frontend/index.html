@@ -15,6 +15,12 @@
   <main>
     <!-- Zone 1: dashboard -->
     <section id="dashboard">
+      <div class="date-filter">
+        <label>From <input type="date" id="filter-from"></label>
+        <label>To <input type="date" id="filter-to"></label>
+        <button id="filter-clear" type="button">Clear</button>
+      </div>
+
       <div class="stat-tiles">
         <div class="tile">
           <span class="tile-number" id="total-brews">–</span>
@@ -22,7 +28,7 @@
         </div>
         <div class="tile">
           <span class="tile-number" id="brews-today">–</span>
-          <span class="tile-label">brews on last active day</span>
+          <span class="tile-label" id="brews-today-label">brews on last active day</span>
         </div>
         <div class="tile">
           <span class="tile-number" id="machine-count">–</span>

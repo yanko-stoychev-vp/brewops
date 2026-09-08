@@ -71,8 +71,24 @@ class MaintenanceIn(BaseModel):
 
 
 @app.get("/api/stats")
-def stats(conn: sqlite3.Connection = Depends(get_db)):
-    return queries.get_stats(conn)
+def stats(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    conn: sqlite3.Connection = Depends(get_db),
+):
+    if date_from:
+        try:
+            datetime.strptime(date_from, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(400, f"date_from must be YYYY-MM-DD, got {date_from!r}")
+    if date_to:
+        try:
+            datetime.strptime(date_to, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(400, f"date_to must be YYYY-MM-DD, got {date_to!r}")
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(400, "date_from must not be after date_to")
+    return queries.get_stats(conn, date_from, date_to)
 
 
 @app.get("/api/machines")

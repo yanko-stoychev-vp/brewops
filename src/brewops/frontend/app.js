@@ -82,10 +82,22 @@ function renderMachineCards(healths) {
 }
 
 async function loadDashboard() {
-  const stats = await fetchJSON("/api/stats");
+  const filterFrom = document.getElementById("filter-from");
+  const filterTo = document.getElementById("filter-to");
+  const params = new URLSearchParams();
+  if (filterFrom.value) params.set("date_from", filterFrom.value);
+  if (filterTo.value) params.set("date_to", filterTo.value);
+  const qs = params.toString();
+  const stats = await fetchJSON(`/api/stats${qs ? "?" + qs : ""}`);
+
   document.getElementById("total-brews").textContent = stats.total_brews;
   const lastDay = stats.per_day[stats.per_day.length - 1];
   document.getElementById("brews-today").textContent = lastDay ? lastDay.count : 0;
+
+  const isFiltered = filterFrom.value || filterTo.value;
+  const label = document.getElementById("brews-today-label");
+  label.textContent = isFiltered ? "brews on last day in range" : "brews on last active day";
+
   renderDrinkBars(stats.per_drink);
   renderTimeline(stats.per_day);
 
@@ -165,3 +177,12 @@ loadDashboard().catch((error) => {
   console.error("Dashboard failed to load:", error);
 });
 setupForms().catch((error) => console.error("Form setup failed:", error));
+
+// Date filter event listeners
+document.getElementById("filter-from").addEventListener("change", loadDashboard);
+document.getElementById("filter-to").addEventListener("change", loadDashboard);
+document.getElementById("filter-clear").addEventListener("click", () => {
+  document.getElementById("filter-from").value = "";
+  document.getElementById("filter-to").value = "";
+  loadDashboard();
+});

@@ -35,6 +35,50 @@ def test_stats(db):
         "2026-06-02": 1,
     }
 
+    # Test date_from filter: only 2026-06-02
+    r = request(app, "GET", "/api/stats?date_from=2026-06-02")
+    assert r.status == 200
+    stats = r.json()
+    assert stats["total_brews"] == 1
+    assert {d["day"]: d["count"] for d in stats["per_day"]} == {"2026-06-02": 1}
+
+    # Test date_to filter: only 2026-06-01
+    r = request(app, "GET", "/api/stats?date_to=2026-06-01")
+    assert r.status == 200
+    stats = r.json()
+    assert stats["total_brews"] == 2
+    assert {d["day"]: d["count"] for d in stats["per_day"]} == {"2026-06-01": 2}
+
+    # Test both: single day
+    r = request(app, "GET", "/api/stats?date_from=2026-06-01&date_to=2026-06-01")
+    assert r.status == 200
+    stats = r.json()
+    assert stats["total_brews"] == 2
+
+    # Test error: date_from after date_to
+    r = request(app, "GET", "/api/stats?date_from=2026-06-10&date_to=2026-06-01")
+    assert r.status == 400
+    assert "date_from" in r.json()["detail"]
+
+    # Test error: malformed date_from
+    r = request(app, "GET", "/api/stats?date_from=not-a-date")
+    assert r.status == 400
+    assert "date_from" in r.json()["detail"]
+
+    # Test error: malformed date_to
+    r = request(app, "GET", "/api/stats?date_to=2026/06/01")
+    assert r.status == 400
+    assert "date_to" in r.json()["detail"]
+
+    # Test empty range: valid dates with no brews
+    r = request(app, "GET", "/api/stats?date_from=1900-01-01&date_to=1900-01-02")
+    assert r.status == 200
+    stats = r.json()
+    assert stats["total_brews"] == 0
+    per_drink = {d["name"]: d["count"] for d in stats["per_drink"]}
+    assert per_drink["espresso"] == 0
+    assert stats["per_day"] == []
+
 
 def test_machines_list_and_health(db):
     r = request(app, "GET", "/api/machines")
