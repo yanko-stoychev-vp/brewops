@@ -59,7 +59,7 @@ function renderMachineCards(healths) {
       ? `${m.last_maintenance.type} on ${m.last_maintenance.timestamp.slice(0, 10)}`
       : "none on record";
     const specialty = m.specialty
-      ? `${m.specialty.label} (${m.specialty.count})`
+      ? `${m.specialty.label} (${m.specialty.count} total brews)`
       : "no brews yet";
     const busiestDay = m.busiest_day
       ? `${m.busiest_day.day} (${m.busiest_day.count} brews)`
