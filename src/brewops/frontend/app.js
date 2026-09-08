@@ -61,6 +61,9 @@ function renderMachineCards(healths) {
     const specialty = m.specialty
       ? `${m.specialty.label} (${m.specialty.count})`
       : "no brews yet";
+    const busiestDay = m.busiest_day
+      ? `${m.busiest_day.day} (${m.busiest_day.count} brews)`
+      : "no brews yet";
     const errors = m.recent_errors.length
       ? `<p class="errors">Recent errors: ${m.recent_errors
           .map((e) => `${e.error_code || "?"} (${e.timestamp.slice(0, 10)})`)
@@ -71,6 +74,7 @@ function renderMachineCards(healths) {
       <p class="badge">${m.has_telemetry ? "telemetry" : "manual log"}</p>
       <p>${m.brew_count} brews · last ${m.last_brew ? m.last_brew.slice(0, 16) : "never"}</p>
       <p>Specialty: ${specialty}</p>
+      <p>Busiest day: ${busiestDay}</p>
       <p>Last maintenance: ${maintenance}</p>
       ${errors}`;
     container.appendChild(card);

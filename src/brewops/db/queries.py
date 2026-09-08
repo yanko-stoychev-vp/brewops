@@ -139,10 +139,22 @@ def get_machine_health(conn: sqlite3.Connection, machine_id: int) -> dict[str, A
         """,
         (machine_id,),
     ).fetchone()
+    busiest_day = conn.execute(
+        """
+        SELECT DATE(timestamp) AS day, COUNT(*) AS count
+        FROM brew_events
+        WHERE machine_id = ?
+        GROUP BY DATE(timestamp)
+        ORDER BY count DESC, day ASC
+        LIMIT 1
+        """,
+        (machine_id,),
+    ).fetchone()
     return machine | {
         "brew_count": brews["count"],
         "last_brew": brews["last_brew"],
         "last_maintenance": dict(last_maintenance) if last_maintenance else None,
         "recent_errors": recent_errors,
+        "busiest_day": dict(busiest_day) if busiest_day else None,
         "specialty": dict(specialty) if specialty else None,
     }
