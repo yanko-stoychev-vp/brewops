@@ -1,0 +1,25 @@
+flowchart TD
+    subgraph ING["Ingestion Paths"]
+        CSV["CSV Files<br/>data/inbox/*.csv<br/>(brews_*, manual_*, maintenance_*)"]
+        MANUAL["Manual Entry Forms<br/>frontend/app.js (brew / maintenance forms)"]
+    end
+
+    subgraph PROC["Ingest & API Layer (Processing)"]
+        INGEST["Ingest Module<br/>ingest/loader.py<br/>(uv run ingest)"]
+        API["API (FastAPI)<br/>api/main.py<br/>POST /api/brews, /api/maintenance<br/>GET /api/*"]
+    end
+
+    subgraph DBL["Database Layer"]
+        DB[("SQLite Database<br/>db/schema.py, connection.py, queries.py")]
+    end
+
+    subgraph FE["Frontend Layer"]
+        FRONT["Frontend Dashboard<br/>frontend/app.js<br/>(renders GET data)"]
+    end
+
+    CSV -->|"uv run ingest (routed by filename prefix)"| INGEST
+    INGEST -->|"INSERT brew/maintenance events (source=csv)"| DB
+    MANUAL -->|"POST /api/brews, /api/maintenance (Pydantic-validated)"| API
+    API -->|"INSERT (source=manual)"| DB
+    DB -.->|"queries.py reads"| API
+    API -.->|"GET /api/* -> JSON -> render dashboard"| FRONT

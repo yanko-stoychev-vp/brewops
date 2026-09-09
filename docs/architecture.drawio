@@ -1,0 +1,65 @@
+<mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="850" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <mxCell id="g1" value="Ingestion Paths" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="60" y="40" width="1100" height="140" as="geometry" />
+    </mxCell>
+    <mxCell id="g2" value="Ingest &amp; API Layer (Processing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="60" y="220" width="1100" height="160" as="geometry" />
+    </mxCell>
+    <mxCell id="g3" value="Database Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="60" y="420" width="1100" height="100" as="geometry" />
+    </mxCell>
+    <mxCell id="g4" value="Frontend Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="60" y="560" width="1100" height="120" as="geometry" />
+    </mxCell>
+
+    <mxCell id="csv" value="CSV Files&#10;data/inbox/*.csv&#10;(brews_*, manual_*, maintenance_*)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="100" y="90" width="300" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="manual" value="Manual Entry Forms&#10;frontend/app.js (brew / maintenance forms)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="700" y="90" width="300" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="ingest" value="Ingest Module&#10;ingest/loader.py&#10;(uv run ingest)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="100" y="270" width="300" height="80" as="geometry" />
+    </mxCell>
+
+    <mxCell id="api" value="API (FastAPI)&#10;api/main.py&#10;POST /api/brews, /api/maintenance&#10;GET /api/*" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="670" y="270" width="360" height="80" as="geometry" />
+    </mxCell>
+
+    <mxCell id="db" value="SQLite Database&#10;db/schema.py, connection.py, queries.py" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="300" y="450" width="500" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="frontend" value="Frontend Dashboard&#10;frontend/app.js&#10;(renders GET data)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="700" y="600" width="300" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e1" value="uv run ingest&#10;(routed by filename prefix)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="csv" target="ingest">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e2" value="INSERT brew/maintenance events&#10;(source=csv)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.2;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ingest" target="db">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e3" value="POST /api/brews, /api/maintenance&#10;(manual entry, Pydantic-validated)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="manual" target="api">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e4" value="INSERT (source=manual)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.8;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="db">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e5" value="queries.py reads" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#666666;fontColor=#666666;fontSize=11;endArrow=block;dashed=1;exitX=0.65;exitY=0;exitDx=0;exitDy=0;entryX=0.65;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="db" target="api">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e6" value="GET /api/* &#8594; JSON &#8594; render dashboard" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#666666;fontColor=#666666;fontSize=11;endArrow=block;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="frontend">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
