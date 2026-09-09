@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS maintenance_events (
 CREATE INDEX IF NOT EXISTS idx_brew_events_machine ON brew_events(machine_id);
 CREATE INDEX IF NOT EXISTS idx_brew_events_timestamp ON brew_events(timestamp);
 CREATE INDEX IF NOT EXISTS idx_maintenance_events_machine ON maintenance_events(machine_id);
+CREATE INDEX IF NOT EXISTS idx_maintenance_events_machine_type_ts ON maintenance_events(machine_id, type, timestamp);
 """
 
 # The fleet. Old Faithful predates telemetry; its brews are logged by hand in the UI.

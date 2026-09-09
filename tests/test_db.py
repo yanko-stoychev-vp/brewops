@@ -1,7 +1,10 @@
+from datetime import datetime
+
 import pytest
 
 from brewops.db.connection import connect
 from brewops.db.queries import (
+    get_alerts,
     get_drink_types,
     get_machine_health,
     get_machines,
@@ -91,6 +94,26 @@ def test_machine_health_unknown_machine(conn):
     assert get_machine_health(conn, 999) is None
 
 
+def test_machine_health_needs_descale_when_overdue(conn):
+    insert_maintenance(conn, 4, "descale", "2026-01-01 08:00:00")
+    conn.commit()
+    health = get_machine_health(conn, 4, now=datetime(2026, 7, 1))  # 181 days later
+    assert health["needs_descale"] is True
+
+
+def test_machine_health_no_descale_needed_when_recent(conn):
+    insert_maintenance(conn, 4, "descale", "2026-06-15 08:00:00")
+    conn.commit()
+    health = get_machine_health(conn, 4, now=datetime(2026, 7, 1))  # 16 days later
+    assert health["needs_descale"] is False
+
+
+def test_machine_health_needs_descale_when_never_descaled(conn):
+    health = get_machine_health(conn, 4, now=datetime(2026, 7, 1))
+    assert health["last_descale"] is None
+    assert health["needs_descale"] is True
+
+
 def test_stats_empty_range(conn):
     """Test that an empty date range returns zero brews, zero-filled per_drink, and empty per_day."""
     insert_brew(conn, 1, "espresso", "2026-06-01 08:00:00", 27.5, 92.0, "csv")
@@ -104,6 +127,37 @@ def test_stats_empty_range(conn):
     assert per_drink["cappuccino"] == 0
     assert per_drink["latte"] == 0
     assert stats["per_day"] == []
+
+
+def test_get_alerts_flags_repeated_errors(conn):
+    # Machine 4: 3 errors within the window -- mirrors the
+    # maintenance_2026-07.csv machine-4/E13 repeated-error pattern.
+    insert_maintenance(conn, 4, "error", "2026-07-01 08:00:00", error_code="E13", note="started stalling")
+    insert_maintenance(conn, 4, "error", "2026-07-03 09:00:00", error_code="E13")
+    insert_maintenance(conn, 4, "error", "2026-07-05 10:00:00", error_code="E13", note="grinder jam")
+    # Machine 1: only 1 error -- should not alert (below threshold)
+    insert_maintenance(conn, 1, "error", "2026-07-04 10:00:00", error_code="E02")
+    conn.commit()
+
+    alerts = get_alerts(conn, min_errors=2, window_days=7, now=datetime(2026, 7, 6))
+    assert len(alerts) == 1
+    assert alerts[0]["id"] == 4
+    assert alerts[0]["error_count"] == 3
+    assert alerts[0]["events"][0]["error_code"] == "E13"
+
+
+def test_get_alerts_respects_window(conn):
+    # Error outside the trailing window should not count.
+    insert_maintenance(conn, 2, "error", "2026-01-01 08:00:00", error_code="E01")
+    insert_maintenance(conn, 2, "error", "2026-07-05 08:00:00", error_code="E01")
+    conn.commit()
+
+    alerts = get_alerts(conn, min_errors=2, window_days=7, now=datetime(2026, 7, 6))
+    assert alerts == []
+
+
+def test_get_alerts_none_when_healthy(conn):
+    assert get_alerts(conn) == []
 
 
 def test_reset_db_clears_events(conn):

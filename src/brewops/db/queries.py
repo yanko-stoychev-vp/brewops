@@ -1,7 +1,12 @@
 """Read and write queries. All timestamps are naive local time strings."""
 
 import sqlite3
+from datetime import datetime, timedelta
 from typing import Any
+
+ALERT_MIN_ERRORS = 2
+ALERT_WINDOW_DAYS = 7
+DESCALE_WARNING_DAYS = 90
 
 
 def get_machines(conn: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -139,11 +144,14 @@ def get_brews_for_export(conn: sqlite3.Connection, date_from: str | None = None,
     return [dict(r) for r in rows]
 
 
-def get_machine_health(conn: sqlite3.Connection, machine_id: int) -> dict[str, Any] | None:
+def get_machine_health(
+    conn: sqlite3.Connection, machine_id: int, now: datetime | None = None
+) -> dict[str, Any] | None:
     """Machine card: brew activity plus maintenance history."""
     machine = get_machine(conn, machine_id)
     if machine is None:
         return None
+    now = now or datetime.now()
     brews = conn.execute(
         """
         SELECT COUNT(*) AS count, MAX(timestamp) AS last_brew
@@ -195,11 +203,78 @@ def get_machine_health(conn: sqlite3.Connection, machine_id: int) -> dict[str, A
         """,
         (machine_id,),
     ).fetchone()
+    last_descale = conn.execute(
+        """
+        SELECT timestamp
+        FROM maintenance_events
+        WHERE machine_id = ? AND type = 'descale'
+        ORDER BY timestamp DESC LIMIT 1
+        """,
+        (machine_id,),
+    ).fetchone()
+    needs_descale = (
+        last_descale is None
+        or (now - datetime.strptime(last_descale["timestamp"], "%Y-%m-%d %H:%M:%S")).days
+        >= DESCALE_WARNING_DAYS
+    )
     return machine | {
         "brew_count": brews["count"],
         "last_brew": brews["last_brew"],
         "last_maintenance": dict(last_maintenance) if last_maintenance else None,
         "recent_errors": recent_errors,
+        "last_descale": last_descale["timestamp"] if last_descale else None,
+        "needs_descale": needs_descale,
         "busiest_day": dict(busiest_day) if busiest_day else None,
         "specialty": dict(specialty) if specialty else None,
     }
+
+
+def get_alerts(
+    conn: sqlite3.Connection,
+    min_errors: int = ALERT_MIN_ERRORS,
+    window_days: int = ALERT_WINDOW_DAYS,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Machines with min_errors or more type='error' events in the trailing
+    window_days. One entry per machine in alert state, newest qualifying
+    error first across the fleet; each entry includes the qualifying events.
+    """
+    now = now or datetime.now()
+    since = (now - timedelta(days=window_days)).strftime("%Y-%m-%d %H:%M:%S")
+    rows = conn.execute(
+        """
+        SELECT m.id, m.name, m.floor, m.has_telemetry,
+               COUNT(me.id) AS error_count,
+               MAX(me.timestamp) AS last_error_at
+        FROM machines m
+        JOIN maintenance_events me
+          ON me.machine_id = m.id AND me.type = 'error' AND me.timestamp >= ?
+        GROUP BY m.id
+        HAVING COUNT(me.id) >= ?
+        ORDER BY last_error_at DESC
+        """,
+        (since, min_errors),
+    ).fetchall()
+
+    alerts = []
+    for r in rows:
+        events = [
+            dict(e)
+            for e in conn.execute(
+                """
+                SELECT timestamp, error_code, note
+                FROM maintenance_events
+                WHERE machine_id = ? AND type = 'error' AND timestamp >= ?
+                ORDER BY timestamp DESC
+                """,
+                (r["id"], since),
+            )
+        ]
+        alerts.append(
+            dict(r) | {
+                "has_telemetry": bool(r["has_telemetry"]),
+                "window_days": window_days,
+                "events": events,
+            }
+        )
+    return alerts

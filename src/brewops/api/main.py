@@ -148,6 +148,20 @@ def machine_health(machine_id: int, conn: sqlite3.Connection = Depends(get_db)):
     return health
 
 
+@app.get("/api/alerts")
+def alerts(
+    min_errors: int | None = None,
+    window_days: int | None = None,
+    conn: sqlite3.Connection = Depends(get_db),
+):
+    kwargs = {}
+    if min_errors is not None:
+        kwargs["min_errors"] = min_errors
+    if window_days is not None:
+        kwargs["window_days"] = window_days
+    return queries.get_alerts(conn, **kwargs)
+
+
 @app.get("/api/drink-types")
 def drink_types(conn: sqlite3.Connection = Depends(get_db)):
     return queries.get_drink_types(conn)

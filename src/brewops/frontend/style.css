@@ -114,29 +114,38 @@ main {
   gap: 1.35rem;
 }
 
+/* row 1: date filter, row 2: alerts (both auto-placed, in DOM order) */
+.date-filter {
+  grid-row: 1;
+}
+
+.alerts-panel {
+  grid-row: 2;
+}
+
 /* KPI band across the top */
 .stat-tiles {
   grid-column: 1 / -1;
-  grid-row: 1;
+  grid-row: 3;
 }
 
 /* hero row: wide trend chart + a narrower breakdown beside it */
 #dashboard > .panel:has(#timeline) {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 4;
   display: flex;
   flex-direction: column;
 }
 
 #dashboard > .panel:has(#drink-bars) {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 4;
 }
 
 /* fleet gallery spans full width below the hero row */
 #dashboard > .panel:has(#machine-cards) {
   grid-column: 1 / -1;
-  grid-row: 3;
+  grid-row: 5;
 }
 
 /* the two logging forms sit side by side under the dashboard */
@@ -434,6 +443,11 @@ main {
   padding: 0.18rem 0.7rem;
 }
 
+.badge-warning {
+  color: #fff;
+  background: linear-gradient(180deg, var(--warn-bg), var(--warn));
+}
+
 .errors {
   margin-top: 0.7rem;
   color: var(--warn);
@@ -442,6 +456,41 @@ main {
   padding: 0.55rem 0.75rem;
   font-size: 0.8rem;
   line-height: 1.4;
+}
+
+/* ---- alerts: staff-facing early warning ---- */
+.alerts-panel {
+  grid-column: 1 / -1;
+  border-color: var(--warn);
+}
+
+.alerts-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.alert-item {
+  border-left: 4px solid var(--warn);
+  background: var(--warn-bg);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.9rem;
+}
+
+.alert-title {
+  margin: 0 0 0.2rem;
+  font-weight: 700;
+  color: var(--warn);
+}
+
+.alert-item p:last-child {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+/* ---- lobby mode: reception screen shows no data-entry tools ---- */
+body.lobby-mode .form-panel {
+  display: none;
 }
 
 /* ---- forms: the order pad ---- */

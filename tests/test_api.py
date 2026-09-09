@@ -90,11 +90,30 @@ def test_machines_list_and_health(db):
     health = r.json()
     assert health["brew_count"] == 2
     assert health["last_maintenance"]["type"] == "descale"
+    assert health["last_descale"] == "2026-06-03 18:00:00"
+    assert "needs_descale" in health
 
 
 def test_machine_health_404(db):
     r = request(app, "GET", "/api/machines/999")
     assert r.status == 404
+
+
+def test_alerts(db):
+    r = request(app, "GET", "/api/alerts")
+    assert r.status == 200
+    assert r.json() == []  # fixture `db` has no error events yet
+
+    insert_maintenance(db, 4, "error", "2026-06-01 08:00:00", error_code="E13")
+    insert_maintenance(db, 4, "error", "2026-06-02 08:00:00", error_code="E13")
+    db.commit()
+
+    r = request(app, "GET", "/api/alerts?window_days=365")
+    assert r.status == 200
+    alerts = r.json()
+    assert len(alerts) == 1
+    assert alerts[0]["name"] == "Rocket (4th floor)"
+    assert alerts[0]["error_count"] == 2
 
 
 def test_drink_types(db):

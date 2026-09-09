@@ -42,6 +42,13 @@ def test_static_assets_served(db):
     assert "bar-fill" in css.text
 
 
+def test_lobby_mode_flag_present(db):
+    js = request(get_app(), "GET", "/app.js")
+    assert "LOBBY_MODE" in js.text
+    css = request(get_app(), "GET", "/style.css")
+    assert "lobby-mode" in css.text
+
+
 def test_frontend_has_no_external_resources():
     # the SVG namespace is an identifier, not a fetched resource
     allowed = ("http://www.w3.org/2000/svg", "http://localhost")

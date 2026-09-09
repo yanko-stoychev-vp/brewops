@@ -9,6 +9,9 @@ async function fetchJSON(url, options) {
   return response.json();
 }
 
+const LOBBY_MODE = new URLSearchParams(location.search).get("lobby") === "1";
+if (LOBBY_MODE) document.body.classList.add("lobby-mode");
+
 // ---- dashboard ----
 
 function renderDrinkBars(perDrink) {
@@ -55,30 +58,59 @@ function renderMachineCards(healths) {
   for (const m of healths) {
     const card = document.createElement("div");
     card.className = "card";
-    const maintenance = m.last_maintenance
-      ? `${m.last_maintenance.type} on ${m.last_maintenance.timestamp.slice(0, 10)}`
-      : "none on record";
     const specialty = m.specialty
       ? `${m.specialty.label} (${m.specialty.count} total brews)`
       : "no brews yet";
     const busiestDay = m.busiest_day
       ? `${m.busiest_day.day} (${m.busiest_day.count} brews)`
       : "no brews yet";
-    const errors = m.recent_errors.length
-      ? `<p class="errors">Recent errors: ${m.recent_errors
-          .map((e) => `${e.error_code || "?"} (${e.timestamp.slice(0, 10)})`)
-          .join(", ")}</p>`
+    let maintenanceAndErrors = "";
+    if (!LOBBY_MODE) {
+      const maintenance = m.last_maintenance
+        ? `${m.last_maintenance.type} on ${m.last_maintenance.timestamp.slice(0, 10)}`
+        : "none on record";
+      const errors = m.recent_errors.length
+        ? `<p class="errors">Recent errors: ${m.recent_errors
+            .map((e) => `${e.error_code || "?"} (${e.timestamp.slice(0, 10)})`)
+            .join(", ")}</p>`
+        : "";
+      maintenanceAndErrors = `<p>Last maintenance: ${maintenance}</p>${errors}`;
+    }
+    const descaleBadge = m.needs_descale
+      ? `<p class="badge badge-warning">Needs descaling</p>`
       : "";
     card.innerHTML = `
       <h3>${m.name}</h3>
       <p class="badge">${m.has_telemetry ? "telemetry" : "manual log"}</p>
+      ${descaleBadge}
       <p>${m.brew_count} brews · last ${m.last_brew ? m.last_brew.slice(0, 16) : "never"}</p>
       <p>Specialty: ${specialty}</p>
       <p>Busiest day: ${busiestDay}</p>
-      <p>Last maintenance: ${maintenance}</p>
-      ${errors}`;
+      ${maintenanceAndErrors}`;
     container.appendChild(card);
   }
+}
+
+function renderAlerts(alerts) {
+  const panel = document.getElementById("alerts-panel");
+  const container = document.getElementById("alerts-list");
+  container.innerHTML = "";
+  panel.hidden = alerts.length === 0;
+  if (alerts.length === 0) return;
+  for (const a of alerts) {
+    const item = document.createElement("div");
+    item.className = "alert-item";
+    const codes = a.events.map((e) => e.error_code || "?").join(", ");
+    item.innerHTML = `
+      <p class="alert-title">${a.name}</p>
+      <p>${a.error_count} errors in the last ${a.window_days} days (${codes}) — last at ${a.last_error_at.slice(0, 16)}</p>`;
+    container.appendChild(item);
+  }
+}
+
+async function loadAlerts() {
+  const alerts = await fetchJSON("/api/alerts");
+  renderAlerts(alerts);
 }
 
 async function loadDashboard() {
@@ -190,7 +222,14 @@ loadDashboard().catch((error) => {
   document.getElementById("total-brews").textContent = "!";
   console.error("Dashboard failed to load:", error);
 });
-setupForms().catch((error) => console.error("Form setup failed:", error));
+if (!LOBBY_MODE) {
+  setupForms().catch((error) => console.error("Form setup failed:", error));
+  loadAlerts().catch((error) => console.error("Alerts failed to load:", error));
+
+  setInterval(() => {
+    loadAlerts().catch((error) => console.error("Alerts refresh failed:", error));
+  }, 60000); // 60s poll
+}
 
 // Date filter event listeners
 document.getElementById("filter-from").addEventListener("change", loadDashboard);
